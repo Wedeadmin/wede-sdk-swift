@@ -112,6 +112,73 @@ public actor WedeClient {
         return try await request(method: "GET", path: "/v1/parsers/vertical/\(vertical)/active")
     }
 
+
+    // MARK: - Teams
+
+    public func listTeams(tenantId: String? = nil) async throws -> WedeResponse<[WedeTeam]> {
+        let path = tenantId != nil ? "/v1/teams?tenant_id=\(tenantId!)" : "/v1/teams"
+        return try await request(method: "GET", path: path)
+    }
+
+    public func getTeam(_ teamId: String) async throws -> WedeResponse<WedeTeam> {
+        return try await request(method: "GET", path: "/v1/teams/\(teamId)")
+    }
+
+    public func updateMemberLocation(teamId: String, memberId: String, lat: Double, lng: Double) async throws {
+        struct Body: Encodable { let lat: Double; let lng: Double }
+        let _: [String: AnyCodable] = try await request(
+            method: "PATCH",
+            path: "/v1/teams/\(teamId)/members/\(memberId)/location",
+            body: Body(lat: lat, lng: lng)
+        )
+    }
+
+    // MARK: - Dispatch
+
+    public func scoreTeams(lat: Double, lng: Double, vertical: String? = nil, priority: String? = nil) async throws -> WedeResponse<[WedeScoredTeam]> {
+        struct Body: Encodable {
+            let lat: Double; let lng: Double
+            let vertical: String?; let priority: String?
+        }
+        return try await request(method: "POST", path: "/v1/teams/dispatch/score",
+            body: Body(lat: lat, lng: lng, vertical: vertical, priority: priority))
+    }
+
+    public func dispatch(eventId: String, teamId: String, notes: String? = nil, eventLat: Double? = nil, eventLng: Double? = nil) async throws -> [String: AnyCodable] {
+        struct Body: Encodable {
+            let event_id: String; let team_id: String
+            let notes: String?; let event_lat: Double?; let event_lng: Double?
+        }
+        return try await request(method: "POST", path: "/v1/teams/dispatch",
+            body: Body(event_id: eventId, team_id: teamId, notes: notes, event_lat: eventLat, event_lng: eventLng))
+    }
+
+    // MARK: - Missions
+
+    public func listMissions(teamId: String? = nil, status: MissionStatus? = nil) async throws -> WedeResponse<[WedeMission]> {
+        var params: [String] = []
+        if let t = teamId { params.append("team_id=\(t)") }
+        if let s = status { params.append("status=\(s.rawValue)") }
+        let qs = params.isEmpty ? "" : "?" + params.joined(separator: "&")
+        return try await request(method: "GET", path: "/v1/missions\(qs)")
+    }
+
+    public func getMission(_ missionId: String) async throws -> WedeResponse<WedeMission> {
+        return try await request(method: "GET", path: "/v1/missions/\(missionId)")
+    }
+
+    public func updateMissionStatus(_ missionId: String, status: MissionStatus) async throws -> WedeResponse<WedeMission> {
+        struct Body: Encodable { let status: String }
+        return try await request(method: "PATCH", path: "/v1/missions/\(missionId)/status",
+            body: Body(status: status.rawValue))
+    }
+
+    // MARK: - Billing
+
+    public func getBilling() async throws -> [String: AnyCodable] {
+        return try await request(method: "GET", path: "/v1/tenant/billing")
+    }
+
     // Tenant
     public func getTenantInfo() async throws -> [String: AnyCodable] {
         return try await request(method: "GET", path: "/v1/tenant/me")

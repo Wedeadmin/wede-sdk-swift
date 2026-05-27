@@ -155,3 +155,104 @@ public struct AnyCodable: Codable {
         }
     }
 }
+
+
+// MARK: - Teams
+
+public enum MissionStatus: String, Codable {
+    case created = "CREATED"
+    case sent = "SENT"
+    case ack = "ACK"
+    case onRoute = "ON_ROUTE"
+    case onSite = "ON_SITE"
+    case completed = "COMPLETED"
+    case failed = "FAILED"
+}
+
+public struct WedeTeamMember: Codable {
+    public let id: String
+    public let teamId: String
+    public let name: String
+    public let role: String
+    public let status: String
+    public let lat: Double?
+    public let lng: Double?
+    public let lastSeen: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, role, status, lat, lng
+        case teamId = "team_id"
+        case lastSeen = "last_seen"
+    }
+}
+
+public struct WedeTeam: Codable {
+    public let id: String
+    public let tenantId: String
+    public let name: String
+    public let type: String
+    public let vertical: String
+    public let status: String
+    public let zoneId: String?
+    public let members: [WedeTeamMember]?
+    public let createdAt: String
+    public let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, type, vertical, status, members
+        case tenantId = "tenant_id"
+        case zoneId = "zone_id"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+public struct WedeScoredTeam: Codable {
+    public let teamId: String
+    public let teamName: String
+    public let distanceKm: Double
+    public let etaMin: Double
+    public let score: Double
+    public let recommended: Bool
+    public let channel: String
+
+    enum CodingKeys: String, CodingKey {
+        case score, recommended, channel
+        case teamId = "team_id"
+        case teamName = "team_name"
+        case distanceKm = "distance_km"
+        case etaMin = "eta_min"
+    }
+}
+
+public struct WedeMission: Codable {
+    public let id: String
+    public let eventId: String
+    public let teamId: String
+    public let status: MissionStatus
+    public let channelUsed: String
+    public let vertical: String?
+    public let priority: String?
+    public let notes: String?
+    public let eventLat: Double?
+    public let eventLng: Double?
+    public let dispatchedAt: String
+    public let onRouteAt: String?
+    public let onSiteAt: String?
+    public let completedAt: String?
+    public let failedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, status, vertical, priority, notes
+        case eventId = "event_id"
+        case teamId = "team_id"
+        case channelUsed = "channel_used"
+        case eventLat = "event_lat"
+        case eventLng = "event_lng"
+        case dispatchedAt = "dispatched_at"
+        case onRouteAt = "on_route_at"
+        case onSiteAt = "on_site_at"
+        case completedAt = "completed_at"
+        case failedAt = "failed_at"
+    }
+}
