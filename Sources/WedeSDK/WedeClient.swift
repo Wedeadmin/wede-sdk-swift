@@ -173,6 +173,23 @@ public actor WedeClient {
             body: Body(status: status.rawValue))
     }
 
+    // MARK: - Catalog
+
+    public func listCatalogActions(vertical: String? = nil) async throws -> [String: AnyCodable] {
+        let qs = vertical.map { "?vertical=\($0)" } ?? ""
+        return try await request(method: "GET", path: "/v1/catalog/actions\(qs)")
+    }
+
+    public func createCatalogAction(vertical: String, code: String, name: String, description: String? = nil) async throws -> [String: AnyCodable] {
+        struct Body: Encodable { let vertical: String; let code: String; let name: String; let description: String? }
+        return try await request(method: "POST", path: "/v1/catalog/actions",
+            body: Body(vertical: vertical, code: code, name: name, description: description))
+    }
+
+    public func deleteCatalogAction(_ actionId: String) async throws {
+        let _: [String: AnyCodable] = try await request(method: "DELETE", path: "/v1/catalog/actions/\(actionId)")
+    }
+
     // MARK: - Billing
 
     public func getBilling() async throws -> [String: AnyCodable] {
