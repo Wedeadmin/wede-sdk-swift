@@ -256,3 +256,23 @@ public struct WedeMission: Codable {
         case failedAt = "failed_at"
     }
 }
+
+public struct SyncResult: Codable {
+    public let accepted: [Int64]
+    public let duplicates: [Int64]
+    public let failed: [Int64]
+    public let serverSeq: Int64
+    public let deviceLastReceivedSeq: Int64
+    public let syncedAt: String
+    enum CodingKeys: String, CodingKey {
+        case accepted, duplicates, failed
+        case serverSeq = "server_seq"
+        case deviceLastReceivedSeq = "device_last_received_seq"
+        case syncedAt = "synced_at"
+    }
+}
+
+public enum WedeSDKError: Error {
+    case storageRequired
+    case invalidResponse
+}

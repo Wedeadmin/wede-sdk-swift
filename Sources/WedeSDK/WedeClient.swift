@@ -6,12 +6,16 @@ public actor WedeClient {
     private let timeout: TimeInterval
     private let retries: Int
     private let session: URLSession
+    public let offline: WedeOfflineDispatch?
+    public let cache: WedeCache?
+    private let deviceId: WedeDeviceId?
 
     public init(
         apiKey: String,
         baseURL: String = "https://api.wede.pt",
         timeout: TimeInterval = 10,
-        retries: Int = 3
+        retries: Int = 3,
+        storage: WedeStorage? = nil
     ) {
         self.apiKey = apiKey
         self.baseURL = URL(string: baseURL)!
@@ -20,6 +24,9 @@ public actor WedeClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeout
         self.session = URLSession(configuration: config)
+        self.offline = storage.map { WedeOfflineDispatch(storage: $0) }
+        self.cache = storage.map { WedeCache(storage: $0) }
+        self.deviceId = storage.map { WedeDeviceId(storage: $0) }
     }
 
     private func request<T: Decodable>(
@@ -203,5 +210,54 @@ public actor WedeClient {
 
     public func getUsage(from: String, to: String) async throws -> [String: AnyCodable] {
         return try await request(method: "GET", path: "/v1/tenant/usage?from=\(from)&to=\(to)")
+    }
+
+    // MARK: - Device & Offline Sync
+
+    public func registerDevice(platform: String = "ios", appVersion: String? = nil) async throws -> [String: AnyCodable] {
+        guard let deviceId = deviceId else { throw WedeSDKError.storageRequired }
+        let id = await deviceId.getOrCreate()
+        struct Body: Encodable { let device_id: String; let platform: String; let app_version: String? }
+        return try await request(method: "POST", path: "/v1/devices/register",
+            body: Body(device_id: id, platform: platform, app_version: appVersion))
+    }
+
+    public func syncDeviceQueue() async throws -> SyncResult? {
+        guard let dispatch = offline, let deviceId = deviceId else { return nil }
+        let existingId = await deviceId.get()
+        let id: String
+        if let eid = existingId { id = eid } else { id = await deviceId.getOrCreate() }
+        let pending = await dispatch.getPendingQueue()
+        struct DispatchEntry: Encodable {
+            let sequence_number: Int64; let action_id: String
+            let event_lat: Double; let event_lng: Double
+            let vertical: String?; let priority: String?
+            let created_offline_at: String
+        }
+        struct Body: Encodable {
+            let device_id: String; let last_received_seq: Int
+            let dispatches: [DispatchEntry]
+        }
+        let entries = pending.map { d in DispatchEntry(
+            sequence_number: d.sequenceNumber, action_id: d.actionId,
+            event_lat: d.event.lat, event_lng: d.event.lng,
+            vertical: d.event.vertical, priority: d.event.priority,
+            created_offline_at: d.queuedAt
+        )}
+        let result: SyncResult = try await request(method: "POST", path: "/v1/devices/sync",
+            body: Body(device_id: id, last_received_seq: 0, dispatches: entries))
+        for seq in result.accepted {
+            if let entry = pending.first(where: { $0.sequenceNumber == seq }) {
+                await dispatch.markSynced(entry.id)
+            }
+        }
+        await dispatch.clearSynced()
+        return result
+    }
+
+    public func refreshCache() async throws {
+        guard let cache = cache else { return }
+        let teamsRes: WedeResponse<[TeamInput]> = try await request(method: "GET", path: "/v1/teams")
+        await cache.setTeams(teamsRes.data)
     }
 }
