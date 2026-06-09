@@ -260,4 +260,22 @@ public actor WedeClient {
         let teamsRes: WedeResponse<[TeamInput]> = try await request(method: "GET", path: "/v1/teams")
         await cache.setTeams(teamsRes.data)
     }
+
+    public func requestBackup(missionId: String, eventId: String, eventLat: Double? = nil, eventLng: Double? = nil) async throws -> [String: AnyCodable] {
+        struct Body: Encodable {
+            let event_id: String; let notes: String
+            let event_lat: Double?; let event_lng: Double?
+        }
+        return try await request(method: "POST", path: "/v1/teams/dispatch",
+            body: Body(event_id: eventId, notes: "Backup requested by field operator for mission \(missionId)",
+                       event_lat: eventLat, event_lng: eventLng))
+    }
+
+    public func updateDispatchSettings(dispatchMode: Bool? = nil, dispatchThreshold: Double? = nil, reinforcementTimeoutMin: Int? = nil) async throws -> [String: AnyCodable] {
+        struct Body: Encodable {
+            let dispatch_mode: Bool?; let dispatch_threshold: Double?; let reinforcement_timeout_min: Int?
+        }
+        return try await request(method: "PATCH", path: "/v1/tenant/dispatch-settings",
+            body: Body(dispatch_mode: dispatchMode, dispatch_threshold: dispatchThreshold, reinforcement_timeout_min: reinforcementTimeoutMin))
+    }
 }
